@@ -93,71 +93,61 @@ def health():
 
 @app.post("/predecir")
 def predecir(estudiante: Estudiante):
-    # 1. Reformatear al formato que exige Databricks
+    # 1. Calcular las nuevas características (Feature Engineering)
+    total_alcohol = float(estudiante.Dalc + estudiante.Walc)
+    study_to_freetime_ratio = float(estudiante.studytime / estudiante.freetime) if estudiante.freetime != 0 else 0.0
+    en_riesgo_academico = 1.0 if (estudiante.failures > 0 or estudiante.absences > 10) else 0.0
+
+    # 2. Reformatear al formato EXACTO de 16 variables que exige Databricks
     payload = {
         "dataframe_records": [
             {
-                "school": estudiante.school,
-                "sex": estudiante.sex,
                 "age": estudiante.age,
-                "address": estudiante.address,
-                "famsize": estudiante.famsize,
-                "Pstatus": estudiante.Pstatus,
                 "Medu": estudiante.Medu,
                 "Fedu": estudiante.Fedu,
-                "Mjob": estudiante.Mjob,
-                "Fjob": estudiante.Fjob,
-                "reason": estudiante.reason,
-                "guardian": estudiante.guardian,
                 "traveltime": estudiante.traveltime,
                 "studytime": estudiante.studytime,
                 "failures": estudiante.failures,
-                "schoolsup": estudiante.schoolsup,
-                "famsup": estudiante.famsup,
-                "paid": estudiante.paid,
-                "activities": estudiante.activities,
-                "nursery": estudiante.nursery,
-                "higher": estudiante.higher,
-                "internet": estudiante.internet,
-                "romantic": estudiante.romantic,
                 "famrel": estudiante.famrel,
                 "freetime": estudiante.freetime,
                 "goout": estudiante.goout,
                 "Dalc": estudiante.Dalc,
                 "Walc": estudiante.Walc,
                 "health": estudiante.health,
-                "absences": estudiante.absences
+                "absences": estudiante.absences,
+                "total_alcohol": total_alcohol,
+                "study_to_freetime_ratio": study_to_freetime_ratio,
+                "en_riesgo_academico": en_riesgo_academico
             }
         ]
     }
 
-    # 2. Configurar encabezados de autenticación
+    # 3. Configurar encabezados de autenticación
     headers = {
         "Authorization": f"Bearer {DATABRICKS_TOKEN}",
         "Content-Type": "application/json",
     }
 
-    # 3. Llamar al endpoint de Databricks
+    # 4. Llamar al endpoint de Databricks
     try:
         response = requests.post(
             DATABRICKS_URL, 
             json=payload, 
             headers=headers, 
-            timeout=10
+            timeout=35
         )
         response.raise_for_status()
         resultado = response.json()
 
         prediccion_val = resultado.get("predictions", [None])[0]
 
-        # 4. Registrar en el archivo de logs
+        # 5. Registrar en el archivo de logs
         file_exists = os.path.exists(LOG_FILE)
         with open(LOG_FILE, mode="a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             if not file_exists:
                 writer.writerow(["timestamp", "prediccion", "diagnostico_academico"])
             
-            # Se asume que 1 = Aprobó, 0 = Reprobó (según el passed)
             estado = "Aprobado" if prediccion_val == 1 else "Reprobado"
             writer.writerow([datetime.now().isoformat(), prediccion_val, estado])
 
