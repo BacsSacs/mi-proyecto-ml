@@ -89,7 +89,7 @@ def health():
         "endpoint_databricks": DATABRICKS_URL,
         "registros_guardados": _contar_logs()
     }
-
+#Alejandro Cocuñame
 
 @app.post("/predecir")
 def predecir(estudiante: Estudiante):
