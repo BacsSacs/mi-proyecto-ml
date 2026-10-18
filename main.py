@@ -8,9 +8,9 @@ from pydantic import BaseModel, Field
 
 # --- Inicialización de la App FastAPI ---
 app = FastAPI(
-    title="API de Predicción de Riesgo Cardiovascular",
-    description="Microservicio FastAPI para consumir el modelo Champion desplegado en Databricks Model Serving",
-    version="3.0"
+    title="API de Predicción de Rendimiento Estudiantil",
+    description="Microservicio FastAPI para consumir el modelo desplegado en Databricks",
+    version="4.0"
 )
 
 # Configuración CORS
@@ -23,7 +23,6 @@ app.add_middleware(
 )
 
 # --- Configuración del endpoint de Databricks ---
-# Estas variables vienen estrictamente de variables de entorno - nunca se escriben en el código
 DATABRICKS_URL = os.environ.get("DATABRICKS_URL", "")
 DATABRICKS_TOKEN = os.environ.get("DATABRICKS_TOKEN", "")
 
@@ -46,26 +45,38 @@ def _contar_logs() -> int:
         return 0
 
 
-# --- Schema de Entrada - Coincide exactamente con las 18 variables del modelo ---
-class Paciente(BaseModel):
-    Age: float = Field(..., example=54.0, description="Edad del paciente")
-    RestingBP: float = Field(..., example=130.0, description="Presión arterial en reposo")
-    Cholesterol: float = Field(..., example=283.0, description="Nivel de colesterol serum")
-    FastingBS: float = Field(..., example=0.0, description="Glucemia en ayunas > 120 mg/dl (1 = Verdadero, 0 = Falso)")
-    MaxHR: float = Field(..., example=162.0, description="Frecuencia cardíaca máxima alcanzada")
-    Oldpeak: float = Field(..., example=1.0, description="Depresión del segmento ST inducida por ejercicio")
-    frecuencia_reserva_ratio: float = Field(..., example=0.975, description="Ratio de FCR alcanzada vs esperada por edad")
-    alto_riesgo_clinico: float = Field(..., example=0.0, description="Flag de Angina + Depresión ST > 1.5 (1 = Sí, 0 = No)")
-    carga_vascular: float = Field(..., example=140.4, description="Índice de presión arterial en reposo ponderada por edad")
-    Sex_M: float = Field(..., example=1.0, description="Sexo masculino (1 = Hombre, 0 = Mujer)")
-    ChestPainType_ATA: float = Field(..., example=0.0, description="Tipo de dolor de pecho: Angina Atípica")
-    ChestPainType_NAP: float = Field(..., example=1.0, description="Tipo de dolor de pecho: Dolor No Anginoso")
-    ChestPainType_TA: float = Field(..., example=0.0, description="Tipo de dolor de pecho: Angina Típica")
-    RestingECG_Normal: float = Field(..., example=1.0, description="Electrocardiograma en reposo: Normal")
-    RestingECG_ST: float = Field(..., example=0.0, description="Electrocardiograma en reposo: Anomalía de onda ST-T")
-    ExerciseAngina_Y: float = Field(..., example=0.0, description="Angina inducida por el ejercicio: Sí (1 = Sí, 0 = No)")
-    ST_Slope_Flat: float = Field(..., example=0.0, description="Pendiente del segmento ST durante esfuerzo: Plana")
-    ST_Slope_Up: float = Field(..., example=1.0, description="Pendiente del segmento ST durante esfuerzo: Ascendente")
+# --- Schema de Entrada - 30 variables exactas exigidas por MLflow ---
+class Estudiante(BaseModel):
+    school: float = Field(..., example=0.0, description="Escuela del estudiante")
+    sex: float = Field(..., example=1.0, description="Sexo del estudiante")
+    age: float = Field(..., example=15.0, description="Edad del estudiante")
+    address: float = Field(..., example=0.0, description="Tipo de dirección (urbana/rural)")
+    famsize: float = Field(..., example=1.0, description="Tamaño de la familia")
+    Pstatus: float = Field(..., example=1.0, description="Estado de convivencia de los padres")
+    Medu: float = Field(..., example=4.0, description="Educación de la madre")
+    Fedu: float = Field(..., example=4.0, description="Educación del padre")
+    Mjob: float = Field(..., example=2.0, description="Trabajo de la madre")
+    Fjob: float = Field(..., example=3.0, description="Trabajo del padre")
+    reason: float = Field(..., example=1.0, description="Razón para elegir la escuela")
+    guardian: float = Field(..., example=1.0, description="Tutor del estudiante")
+    traveltime: float = Field(..., example=1.0, description="Tiempo de viaje a la escuela")
+    studytime: float = Field(..., example=2.0, description="Tiempo de estudio semanal")
+    failures: float = Field(..., example=0.0, description="Número de fracasos en clases pasadas")
+    schoolsup: float = Field(..., example=1.0, description="Apoyo educativo extra")
+    famsup: float = Field(..., example=0.0, description="Apoyo educativo familiar")
+    paid: float = Field(..., example=0.0, description="Clases pagadas extra")
+    activities: float = Field(..., example=1.0, description="Actividades extracurriculares")
+    nursery: float = Field(..., example=1.0, description="Asistió a guardería")
+    higher: float = Field(..., example=1.0, description="Desea educación superior")
+    internet: float = Field(..., example=1.0, description="Acceso a internet en casa")
+    romantic: float = Field(..., example=0.0, description="En una relación romántica")
+    famrel: float = Field(..., example=4.0, description="Calidad de las relaciones familiares")
+    freetime: float = Field(..., example=3.0, description="Tiempo libre después de la escuela")
+    goout: float = Field(..., example=2.0, description="Salidas con amigos")
+    Dalc: float = Field(..., example=1.0, description="Consumo de alcohol en días laborales")
+    Walc: float = Field(..., example=1.0, description="Consumo de alcohol en fines de semana")
+    health: float = Field(..., example=3.0, description="Estado de salud actual")
+    absences: float = Field(..., example=2.0, description="Número de ausencias escolares")
 
 
 # --- Endpoints ---
@@ -74,41 +85,53 @@ class Paciente(BaseModel):
 def health():
     return {
         "status": "ok",
-        "version": "3.0",
+        "version": "4.0",
         "endpoint_databricks": DATABRICKS_URL,
         "registros_guardados": _contar_logs()
     }
 
 
 @app.post("/predecir")
-def predecir(paciente: Paciente):
-    # 1. Reformatear al formato que exige Databricks: dataframe_records
+def predecir(estudiante: Estudiante):
+    # 1. Reformatear al formato que exige Databricks
     payload = {
         "dataframe_records": [
             {
-                "Age": paciente.Age,
-                "RestingBP": paciente.RestingBP,
-                "Cholesterol": paciente.Cholesterol,
-                "FastingBS": paciente.FastingBS,
-                "MaxHR": paciente.MaxHR,
-                "Oldpeak": paciente.Oldpeak,
-                "frecuencia_reserva_ratio": paciente.frecuencia_reserva_ratio,
-                "alto_riesgo_clinico": paciente.alto_riesgo_clinico,
-                "carga_vascular": paciente.carga_vascular,
-                "Sex_M": paciente.Sex_M,
-                "ChestPainType_ATA": paciente.ChestPainType_ATA,
-                "ChestPainType_NAP": paciente.ChestPainType_NAP,
-                "ChestPainType_TA": paciente.ChestPainType_TA,
-                "RestingECG_Normal": paciente.RestingECG_Normal,
-                "RestingECG_ST": paciente.RestingECG_ST,
-                "ExerciseAngina_Y": paciente.ExerciseAngina_Y,
-                "ST_Slope_Flat": paciente.ST_Slope_Flat,
-                "ST_Slope_Up": paciente.ST_Slope_Up,
+                "school": estudiante.school,
+                "sex": estudiante.sex,
+                "age": estudiante.age,
+                "address": estudiante.address,
+                "famsize": estudiante.famsize,
+                "Pstatus": estudiante.Pstatus,
+                "Medu": estudiante.Medu,
+                "Fedu": estudiante.Fedu,
+                "Mjob": estudiante.Mjob,
+                "Fjob": estudiante.Fjob,
+                "reason": estudiante.reason,
+                "guardian": estudiante.guardian,
+                "traveltime": estudiante.traveltime,
+                "studytime": estudiante.studytime,
+                "failures": estudiante.failures,
+                "schoolsup": estudiante.schoolsup,
+                "famsup": estudiante.famsup,
+                "paid": estudiante.paid,
+                "activities": estudiante.activities,
+                "nursery": estudiante.nursery,
+                "higher": estudiante.higher,
+                "internet": estudiante.internet,
+                "romantic": estudiante.romantic,
+                "famrel": estudiante.famrel,
+                "freetime": estudiante.freetime,
+                "goout": estudiante.goout,
+                "Dalc": estudiante.Dalc,
+                "Walc": estudiante.Walc,
+                "health": estudiante.health,
+                "absences": estudiante.absences
             }
         ]
     }
 
-    # 2. Configurar encabezados de autenticación desde variables de entorno
+    # 2. Configurar encabezados de autenticación
     headers = {
         "Authorization": f"Bearer {DATABRICKS_TOKEN}",
         "Content-Type": "application/json",
@@ -127,19 +150,21 @@ def predecir(paciente: Paciente):
 
         prediccion_val = resultado.get("predictions", [None])[0]
 
-        # 4. Registrar en el archivo de logs (predicciones.csv)
+        # 4. Registrar en el archivo de logs
         file_exists = os.path.exists(LOG_FILE)
         with open(LOG_FILE, mode="a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(["timestamp", "prediccion", "diagnostico"])
-            diagnostico = "Alto Riesgo Cardiovascular" if prediccion_val == 1 else "Riesgo Normal / Bajo"
-            writer.writerow([datetime.now().isoformat(), prediccion_val, diagnostico])
+                writer.writerow(["timestamp", "prediccion", "diagnostico_academico"])
+            
+            # Se asume que 1 = Aprobó, 0 = Reprobó (según el passed)
+            estado = "Aprobado" if prediccion_val == 1 else "Reprobado"
+            writer.writerow([datetime.now().isoformat(), prediccion_val, estado])
 
         return {
             "status": "éxito",
             "prediccion": prediccion_val,
-            "diagnostico": "Alto Riesgo Cardiovascular" if prediccion_val == 1 else "Riesgo Normal / Bajo",
+            "diagnostico_academico": estado,
             "respuesta_databricks": resultado
         }
 
