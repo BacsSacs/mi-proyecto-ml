@@ -20,13 +20,13 @@ jobs:
         username: ${{ secrets.ACR_USERNAME }}
         password: ${{ secrets.ACR_PASSWORD }}
 
-    # 3. Construir la imagen Docker y subirla al ACR
+    # 3. Construir la imagen Docker y subirla al ACR con tag v2
     - name: Build and push image
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
-        tags: acrmiprojectobacs.azurecr.io/ml-api:latest
+        tags: acrmiprojectobacs.azurecr.io/ml-api:v2
 
     # 4. Login a Azure con el Service Principal
     - name: Login to Azure
@@ -34,17 +34,14 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    # 5. Desplegar en Container Apps
-    #    DATABRICKS_URL   → URL del endpoint Leo_EAN
-    #    DATABRICKS_TOKEN → token de autenticación
-    #    create = primer despliegue | update = actualizaciones posteriores
+    # 5. Desplegar en Container Apps apuntando a la imagen v2
     - name: Deploy to Container Apps
       run: |
         az containerapp create \
           --name api-mi-proyecto \
           --resource-group rg-mlops-ean \
           --environment env-mi-proyecto \
-          --image acrmiprojectobacs.azurecr.io/ml-api:latest \
+          --image acrmiprojectobacs.azurecr.io/ml-api:v2 \
           --registry-server acrmiprojectobacs.azurecr.io \
           --registry-username ${{ secrets.ACR_USERNAME }} \
           --registry-password ${{ secrets.ACR_PASSWORD }} \
@@ -57,7 +54,7 @@ jobs:
         az containerapp update \
           --name api-mi-proyecto \
           --resource-group rg-mlops-ean \
-          --image acrmiprojectobacs.azurecr.io/ml-api:latest \
+          --image acrmiprojectobacs.azurecr.io/ml-api:v2 \
           --set-env-vars \
             DATABRICKS_URL=${{ secrets.DATABRICKS_URL }} \
             DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}
