@@ -91,30 +91,31 @@ def health():
     }
 #Alejandro Cocuñame
 
+
 @app.post("/predecir")
 def predecir(estudiante: Estudiante):
-    # 1. Calcular las nuevas características (Feature Engineering)
-    total_alcohol = float(estudiante.Dalc + estudiante.Walc)
+    # 1. Feature Engineering respetando los tipos exactos (long = int, double = float)
+    total_alcohol = int(estudiante.Dalc + estudiante.Walc)
     study_to_freetime_ratio = float(estudiante.studytime / estudiante.freetime) if estudiante.freetime != 0 else 0.0
-    en_riesgo_academico = 1.0 if (estudiante.failures > 0 or estudiante.absences > 10) else 0.0
+    en_riesgo_academico = 1 if (estudiante.failures > 0 or estudiante.absences > 10) else 0
 
-    # 2. Reformatear al formato EXACTO de 16 variables que exige Databricks
+    # 2. Payload con las 16 variables y sus tipos requeridos por Databricks
     payload = {
         "dataframe_records": [
             {
-                "age": estudiante.age,
-                "Medu": estudiante.Medu,
-                "Fedu": estudiante.Fedu,
-                "traveltime": estudiante.traveltime,
-                "studytime": estudiante.studytime,
-                "failures": estudiante.failures,
-                "famrel": estudiante.famrel,
-                "freetime": estudiante.freetime,
-                "goout": estudiante.goout,
-                "Dalc": estudiante.Dalc,
-                "Walc": estudiante.Walc,
-                "health": estudiante.health,
-                "absences": estudiante.absences,
+                "age": int(estudiante.age),
+                "Medu": int(estudiante.Medu),
+                "Fedu": int(estudiante.Fedu),
+                "traveltime": int(estudiante.traveltime),
+                "studytime": int(estudiante.studytime),
+                "failures": int(estudiante.failures),
+                "famrel": int(estudiante.famrel),
+                "freetime": int(estudiante.freetime),
+                "goout": int(estudiante.goout),
+                "Dalc": int(estudiante.Dalc),
+                "Walc": int(estudiante.Walc),
+                "health": int(estudiante.health),
+                "absences": int(estudiante.absences),
                 "total_alcohol": total_alcohol,
                 "study_to_freetime_ratio": study_to_freetime_ratio,
                 "en_riesgo_academico": en_riesgo_academico
@@ -122,13 +123,13 @@ def predecir(estudiante: Estudiante):
         ]
     }
 
-    # 3. Configurar encabezados de autenticación
+    # 3. Encabezados de autenticación
     headers = {
         "Authorization": f"Bearer {DATABRICKS_TOKEN}",
         "Content-Type": "application/json",
     }
 
-    # 4. Llamar al endpoint de Databricks
+    # 4. Llamada al endpoint de Databricks
     try:
         response = requests.post(
             DATABRICKS_URL, 
@@ -141,7 +142,7 @@ def predecir(estudiante: Estudiante):
 
         prediccion_val = resultado.get("predictions", [None])[0]
 
-        # 5. Registrar en el archivo de logs
+        # 5. Registro local en el archivo de logs
         file_exists = os.path.exists(LOG_FILE)
         with open(LOG_FILE, mode="a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
